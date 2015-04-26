@@ -1,0 +1,8 @@
+[package]
+name = "toy-dht"
+version = "0.1.0"
+authors = ["Nick Hamann <nick@wabbo.org>"]
+
+[dependencies]
+bencode = "~0.1.11"
+rand = "*"
