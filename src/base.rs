@@ -1,7 +1,7 @@
 use std::net;
 use rand::{self, Rng};
 
-pub const KBUCKET_SIZE: u32 = 20;
+pub const BUCKET_SIZE: u32 = 20;
 
 // NODE_ID_BYTES is used as an index and to create fixed-length arrays
 // so it is most convenient for it to be usize. Even though it should
@@ -47,31 +47,31 @@ impl NodeId {
     }
 }
 
+// is called Routing Table by some accounts/implementations
+// you can also think of this as a contact list. contacts are
+// organized by NodeId
 pub struct NodeInfoStore {
     // ID of the node whose state this is.
     id: NodeId,
 
-    // `num_hash_bits` is length of `buckets`
-    num_hash_bits: u32,
-    buckets: Vec<KBucket>,
+    num_buckets: u32,
+    buckets: Vec<Bucket>,
 }
 
 impl NodeInfoStore {
     // create a NodeInfoStore out of a NodeId, using default values for
     // bucket size and number of bits for hashes
     pub fn new(id: NodeId) -> NodeInfoStore {
-        NodeInfoStore::with(id, KBUCKET_SIZE, NODE_ID_BITS)
+        NodeInfoStore::with(id, BUCKET_SIZE, NODE_ID_BITS)
     }
 
     pub fn with(id: NodeId, bucket_size: u32, hash_size: u32) -> NodeInfoStore{
         let mut v = Vec::with_capacity(hash_size as usize);
-        for _ in 0..hash_size {
-            v.push(KBucket::new(bucket_size));
-        }
+        v.push(Bucket::new(bucket_size)); // create initial bucket
 
         NodeInfoStore {
             id: id,
-            num_hash_bits: hash_size,
+            num_buckets: 0,
             buckets: v,
         }
     }
@@ -90,20 +90,20 @@ pub struct NodeInfo {
 // Stores NodeInfo for some slice of the hash space, usually
 // 2^i <= x < 2^{i+1} for some int i such that 0 \leq i < NODE_ID_BITS_SIZE
 //
-// Each bucket can store up to KBUCKET_SIZE entries. 
+// Each bucket can store up to BUCKET_SIZE entries.
 //
 // Has a least-recently seen eviction policy, except live nodes are
 // never evicted.
 //
-// The current size of the KBucket is `size`
-struct KBucket {
+// The current size of the Bucket is `size`
+struct Bucket {
     info: Vec<NodeInfo>,
     size: u32,
 }
 
-impl KBucket {
-    fn new(size: u32) -> KBucket {
-        KBucket {
+impl Bucket {
+    fn new(size: u32) -> Bucket {
+        Bucket {
             info: Vec::with_capacity(size as usize),
             size: size,
         }
