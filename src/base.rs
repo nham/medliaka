@@ -1,4 +1,6 @@
 use std::net;
+use std::ops::BitXor;
+use std::collections::LinkedList;
 use rand::{self, Rng};
 
 pub const BUCKET_SIZE: u32 = 20;
@@ -17,8 +19,12 @@ pub struct NodeId {
 }
 
 impl NodeId {
-    // generates a random NodeId
     pub fn new() -> NodeId {
+        NodeId { id: [0; NODE_ID_BYTES] }
+    }
+
+    // generates a random NodeId
+    pub fn new_random() -> NodeId {
         let mut rng = match rand::OsRng::new() {
             Ok(rng) => rng,
             e => panic!("Error getting random number generator: {}"),
@@ -41,9 +47,22 @@ impl NodeId {
 
         NodeId { id: x }
     }
+}
 
-    pub fn to_array(&self) -> [u8; NODE_ID_BYTES] {
-        self.id
+// I would like to convert output to integer, but there's a problem:
+// even the default hash (SHA-1) is 20 bytes, so u64 can't store the
+// result. Would have to use BigUint, it seems. So this returns
+// a NodeId, for now. Will count number of initial zeroes or something
+// in this result to figure out the number.
+impl BitXor for NodeId {
+    type Output = NodeId;
+
+    fn bitxor(self, _rhs: NodeId) -> NodeId {
+        let mut n = NodeId::new();
+        for i in 0..NODE_ID_BYTES {
+            n.id[i] = self.id[i] ^ _rhs.id[i];
+        }
+        n
     }
 }
 
@@ -55,7 +74,7 @@ pub struct NodeInfoStore {
     id: NodeId,
 
     num_buckets: u32,
-    buckets: Vec<Bucket>,
+    buckets: LinkedList<Bucket>,
 }
 
 impl NodeInfoStore {
@@ -66,13 +85,13 @@ impl NodeInfoStore {
     }
 
     pub fn with(id: NodeId, bucket_size: u32, hash_size: u32) -> NodeInfoStore{
-        let mut v = Vec::with_capacity(hash_size as usize);
-        v.push(Bucket::new(bucket_size)); // create initial bucket
+        let mut buckets = LinkedList::new();
+        buckets.push_back(Bucket::new(bucket_size)); // initial bucket
 
         NodeInfoStore {
             id: id,
             num_buckets: 0,
-            buckets: v,
+            buckets: buckets,
         }
     }
 }
