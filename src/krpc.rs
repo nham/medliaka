@@ -1,4 +1,4 @@
-use base::{NodeId, NodeInfo, NodeInfoStore};
+use node::{NodeId, NodeInfo, NodeInfoStore};
 
 use std::net;
 use std::io;
@@ -13,7 +13,7 @@ pub struct KrpcService {
 impl KrpcService {
     /// New service with default node table.
     pub fn new(info: NodeInfo) -> io::Result<KrpcService> {
-        let info_store = NodeInfoStore::new( info.id.clone() );
+        let info_store = NodeInfoStore::new_default( info.id.clone() );
         let socket = try!( net::UdpSocket::bind(info.address) );
 
        Ok(KrpcService {
