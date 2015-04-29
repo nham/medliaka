@@ -8,7 +8,7 @@ pub const NODE_ID_BITS: u32 = (NODE_ID_BYTES as u32) * 8;
 
 pub const BUCKET_SIZE: u32 = 20;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct NodeId {
     id: Vec<u8>,
 }
@@ -84,22 +84,17 @@ pub struct NodeInfo {
 // you can also think of this as a contact list. contacts are
 // organized by NodeId
 pub struct NodeInfoStore {
-    // ID of the node whose state this is.
+    // ID of the node whose store this is.
     id: NodeId,
 
-    num_buckets: u32,
-    buckets: Vec<Bucket>,
+    buckets: BucketTree,
 }
 
 impl NodeInfoStore {
     pub fn new(id: NodeId, bucket_size: u32) -> NodeInfoStore {
-        let mut buckets = Vec::with_capacity(id.num_bytes() * 8);
-        buckets.push(Bucket::new(bucket_size)); // initial bucket
-
         NodeInfoStore {
             id: id,
-            num_buckets: 1,
-            buckets: buckets,
+            buckets: BucketTree::new(bucket_size),
         }
     }
 
@@ -110,6 +105,27 @@ impl NodeInfoStore {
 }
 
 
+struct BucketTree {
+    size: u32,
+    root: BucketTreeNode,
+}
+
+enum BucketTreeNode {
+    Bucket(Bucket),
+    Compound(Box<BucketTreeNode>, Box<BucketTreeNode>),
+}
+
+impl BucketTree {
+    // Creates a BucketTree with a single (empty) bucket.
+    pub fn new(size: u32) -> BucketTree {
+        BucketTree {
+            size: size,
+            root: BucketTreeNode::Bucket(Bucket::new()),
+        }
+    }
+
+}
+
 
 // Stores NodeInfo entries for some range of addresses
 struct Bucket {
@@ -117,15 +133,72 @@ struct Bucket {
     // the NodeInfo is, and stale information gets evicted when necessary
     // (to make room for fresh info)
     info: LinkedList<NodeInfo>,
-    size: u32,
     //last_changed: time::Tm,
 }
 
+/*
+
+Here is the logic for updating a node's routing tree when that node sees a any message (request or reply) from another node.
+
+
+def see(info: ContactInfo) {
+    look up the appropriate bucket for the sender's node ID in the routing tree
+
+    // In what follows, less-recently-updated nodes are placed towards the
+    // head of the list, and more-recently-updated ones are placed towards
+    // the tail
+
+    If the node ID exists in the bucket {
+        move that entry to the tail of the list.
+        and possibly update the IP address / UDP port // TODO: clarify
+    } else {
+        if the k-bucket has free space {
+            it is inserted at the tail of the list
+        } else {
+            the node at the head of the list is contacted.
+
+            if it fails to respond {
+                the correspond entry is removed from the list
+                the new contact is added at the tail.
+            } else {
+                if the k-bucket can be divided {
+                    the bucket is split
+                    the new contact is added to the tail of the appropriate bucket.
+                    possibly the contacted node's entry is moved to the tail
+                } else {
+                    // does this need to be done? a response will
+                    // result in see() being called again, which will
+                    // presumably do this very thing.
+                    the contacted node's entry is moved to the tail
+
+                    discard new node (do nothing)
+                }
+            }
+        }
+
+    }
+
+}
+
+*/
 impl Bucket {
-    fn new(size: u32) -> Bucket {
+    pub fn new() -> Bucket {
         Bucket {
             info: LinkedList::new(),
-            size: size,
         }
+    }
+
+    pub fn contains_id<'a>(&self, id: &'a NodeId) -> bool {
+        for contact in self.info.iter() {
+            if contact.id == *id {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // TODO: should this method call evict()?
+    pub fn insert(&mut self, info: NodeInfo) -> Result<(), &'static str> {
+        Err("unimplemented")
     }
 }
