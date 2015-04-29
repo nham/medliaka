@@ -80,9 +80,7 @@ pub struct NodeInfo {
     pub id: NodeId,
 }
 
-// is called Routing Table by some accounts/implementations
-// you can also think of this as a contact list. contacts are
-// organized by NodeId
+//  The routing tree for node with id NodeInfoStore::id
 pub struct NodeInfoStore {
     // ID of the node whose store this is.
     id: NodeId,
