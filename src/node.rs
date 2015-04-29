@@ -100,6 +100,55 @@ impl NodeInfoStore {
         NodeInfoStore::new(id, BUCKET_SIZE)
     }
 
+
+/*
+
+Here is the pseudocode for the logic a node uses when updating its routing tree. The node  does this whenever it sees any message (request or reply) from another node.
+
+def see(info: NodeContactInfo) {
+    look up the appropriate bucket for the sender's node ID in the routing tree
+
+    // In what follows, less-recently-updated nodes are placed towards the
+    // head of the list, and more-recently-updated ones are placed towards
+    // the tail
+
+    if an entry for that node ID exists in the bucket {
+        move that entry to the tail of the list.
+        and possibly update the IP address / UDP port // TODO: clarify
+    } else {
+        if the k-bucket has free space {
+            the new entry is inserted at the tail of the list
+        } else {
+            the node at the head of the list is contacted.
+
+            if it fails to respond {
+                the corresponding entry is removed from the list
+                the new entry is added at the tail.
+            } else {
+                if the k-bucket can be divided {
+                    the bucket is split
+                    the new entry is added to the tail of the appropriate bucket.
+                    possibly the contacted node's entry is moved to the tail
+                } else {
+                    // does this need to be done? a response will
+                    // result in see() being called again, which will
+                    // presumably do this very thing.
+                    the contacted node's entry is moved to the tail
+
+                    discard new node (do nothing)
+                }
+            }
+        }
+
+    }
+
+}
+
+*/
+    pub fn see(&mut self, id: NodeInfo) {
+
+    }
+
 }
 
 
@@ -118,8 +167,7 @@ impl BucketTree {
     pub fn new(size: u32) -> BucketTree {
         BucketTree {
             size: size,
-            root: BucketTreeNode::Bucket(Bucket::new()),
-        }
+            root: BucketTreeNode::Bucket(Bucket::new()), }
     }
 
 }
@@ -134,51 +182,6 @@ struct Bucket {
     //last_changed: time::Tm,
 }
 
-/*
-
-Here is the logic for updating a node's routing tree when that node sees a any message (request or reply) from another node.
-
-
-def see(info: ContactInfo) {
-    look up the appropriate bucket for the sender's node ID in the routing tree
-
-    // In what follows, less-recently-updated nodes are placed towards the
-    // head of the list, and more-recently-updated ones are placed towards
-    // the tail
-
-    If the node ID exists in the bucket {
-        move that entry to the tail of the list.
-        and possibly update the IP address / UDP port // TODO: clarify
-    } else {
-        if the k-bucket has free space {
-            it is inserted at the tail of the list
-        } else {
-            the node at the head of the list is contacted.
-
-            if it fails to respond {
-                the correspond entry is removed from the list
-                the new contact is added at the tail.
-            } else {
-                if the k-bucket can be divided {
-                    the bucket is split
-                    the new contact is added to the tail of the appropriate bucket.
-                    possibly the contacted node's entry is moved to the tail
-                } else {
-                    // does this need to be done? a response will
-                    // result in see() being called again, which will
-                    // presumably do this very thing.
-                    the contacted node's entry is moved to the tail
-
-                    discard new node (do nothing)
-                }
-            }
-        }
-
-    }
-
-}
-
-*/
 impl Bucket {
     pub fn new() -> Bucket {
         Bucket {
