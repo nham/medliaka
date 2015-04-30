@@ -52,6 +52,24 @@ impl NodeId {
     pub fn num_bytes(&self) -> usize {
         self.id.len()
     }
+
+    // can overflow somewhat easily
+    pub fn num_bits(&self) -> usize {
+        self.num_bytes() * 8
+    }
+
+    // i should be zero referenced.
+    //  - 0 is most significant bit
+    //  - (self.num_bits() - 1) is least significant bit
+    pub fn get_bit(&self, i: usize) -> Option<bool> {
+        if i >= self.num_bits() {
+            None
+        } else {
+            let byte = self.id[i / 8];
+            let shift: u8 = 1 << (7 - (i % 8));
+            Some( (byte & shift) != 0 )
+        }
+    }
 }
 
 // I would like to convert output to integer, but there's a problem:
@@ -145,10 +163,71 @@ def see(info: NodeContactInfo) {
 }
 
 */
-    pub fn see(&mut self, id: NodeInfo) {
+    pub fn see(&mut self, info: NodeInfo) {
+        let sid = &info.id;
+        let b = self.buckets.find_bucket(sid);
+
+        //self.buckets.
 
     }
 
+}
+
+struct NodeIdBits<'a> {
+    id: &'a NodeId,
+    bit: usize,
+}
+
+impl<'a> NodeIdBits<'a> {
+    fn new(id: &'a NodeId) -> NodeIdBits<'a> {
+        NodeIdBits {
+            id: id,
+            bit: 1 << (id.num_bits() - 1)
+        }
+    }
+}
+
+impl<'a> Iterator for NodeIdBits<'a> {
+    type Item = bool;
+    fn next(&mut self) -> Option<Self::Item> {
+        let curr = self.id.get_bit(self.bit);
+        self.bit += 1;
+        curr
+    }
+}
+
+
+enum BucketTreeNode {
+    Bucket(Bucket),
+    Compound(Box<BucketTreeNode>, Box<BucketTreeNode>),
+}
+
+impl BucketTreeNode {
+    pub fn find_bucket<'a>(&'a self, id_bits: &'a NodeId) -> &'a Bucket {
+        let mut iter = NodeIdBits::new(&id_bits);
+        match self.find_bucket_recursive(&mut iter) {
+            None => panic!("Got `None` from find_bucket_recursive. Help"),
+            Some(b) => b
+        }
+    }
+
+    fn find_bucket_recursive<'a>(&'a self, id_bits: &mut NodeIdBits<'a>) -> Option<&'a Bucket> {
+        match *self {
+            BucketTreeNode::Bucket(ref bucket) => Some(bucket),
+            BucketTreeNode::Compound(ref node0, ref node1) => {
+                let b = match id_bits.next() {
+                    None => panic!("find_bucket_recursive: No bits left in NodeId"),
+                    Some(b) => b,
+                };
+
+                if b {
+                    node1.find_bucket_recursive(id_bits)
+                } else {
+                    node0.find_bucket_recursive(id_bits)
+                }
+            },
+        }
+    }
 }
 
 
@@ -157,10 +236,6 @@ struct BucketTree {
     root: BucketTreeNode,
 }
 
-enum BucketTreeNode {
-    Bucket(Bucket),
-    Compound(Box<BucketTreeNode>, Box<BucketTreeNode>),
-}
 
 impl BucketTree {
     // Creates a BucketTree with a single (empty) bucket.
@@ -170,6 +245,9 @@ impl BucketTree {
             root: BucketTreeNode::Bucket(Bucket::new()), }
     }
 
+    pub fn find_bucket<'a>(&'a self, id_bits: &'a NodeId) -> &'a Bucket {
+        self.root.find_bucket(id_bits)
+    }
 }
 
 
@@ -181,6 +259,7 @@ struct Bucket {
     info: LinkedList<NodeInfo>,
     //last_changed: time::Tm,
 }
+
 
 impl Bucket {
     pub fn new() -> Bucket {
