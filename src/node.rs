@@ -124,22 +124,23 @@ impl NodeInfoStore {
 Here is the pseudocode for the logic a node uses when updating its routing tree. The node  does this whenever it sees any message (request or reply) from another node.
 
 def see(info: NodeContactInfo) {
-    look up the appropriate bucket for the sender's node ID in the routing tree
+    let SID = sender's node ID = info.id
+    look up the appropriate bucket for `SID` in the routing tree
 
     // In what follows, less-recently-updated nodes are placed towards the
     // head of the list, and more-recently-updated ones are placed towards
     // the tail
 
-    if an entry for that node ID exists in the bucket {
+    if an entry for `SID` exists in the bucket {
         move that entry to the tail of the list.
         and possibly update the IP address / UDP port // TODO: clarify
     } else {
-        if the k-bucket has free space {
+        if the bucket has free space {
             the new entry is inserted at the tail of the list
         } else {
             the node at the head of the list is contacted.
 
-            if it fails to respond {
+            if that node fails to respond {
                 the corresponding entry is removed from the list
                 the new entry is added at the tail.
             } else {
