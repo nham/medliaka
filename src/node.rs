@@ -118,7 +118,6 @@ impl NodeInfoStore {
         NodeInfoStore::new(id, BUCKET_SIZE)
     }
 
-
 /*
 
 Here is the pseudocode for the logic a node uses when updating its routing tree. The node  does this whenever it sees any message (request or reply) from another node.
@@ -137,7 +136,6 @@ def see(info: NodeContactInfo) {
     } else {
         if the bucket has free space {
             the new entry is inserted at the tail of the list
-        } else {
             the node at the head of the list is contacted.
 
             if that node fails to respond {
@@ -158,17 +156,16 @@ def see(info: NodeContactInfo) {
                 }
             }
         }
-
     }
-
 }
-
 */
     pub fn see(&mut self, info: NodeInfo) {
         let sid = &info.id;
-        let b = self.buckets.find_bucket(sid);
+        let mut bkt = self.buckets.find_bucket(sid);
 
-        //self.buckets.
+        if let Some(pos) = bkt.find_id_pos(sid) {
+            bkt.move_to_end(pos);
+        }
 
     }
 
@@ -204,7 +201,7 @@ enum BucketTreeNode {
 }
 
 impl BucketTreeNode {
-    pub fn find_bucket<'a>(&'a self, id_bits: &'a NodeId) -> &'a Bucket {
+    pub fn find_bucket<'a>(&'a mut self, id_bits: &'a NodeId) -> &'a mut Bucket {
         let mut iter = NodeIdBits::new(&id_bits);
         match self.find_bucket_recursive(&mut iter) {
             None => panic!("Got `None` from find_bucket_recursive. Help"),
@@ -212,10 +209,10 @@ impl BucketTreeNode {
         }
     }
 
-    fn find_bucket_recursive<'a>(&'a self, id_bits: &mut NodeIdBits<'a>) -> Option<&'a Bucket> {
+    fn find_bucket_recursive<'a>(&'a mut self, id_bits: &mut NodeIdBits<'a>) -> Option<&'a mut Bucket> {
         match *self {
-            BucketTreeNode::Bucket(ref bucket) => Some(bucket),
-            BucketTreeNode::Compound(ref node0, ref node1) => {
+            BucketTreeNode::Bucket(ref mut bucket) => Some(bucket),
+            BucketTreeNode::Compound(ref mut node0, ref mut node1) => {
                 let b = match id_bits.next() {
                     None => panic!("find_bucket_recursive: No bits left in NodeId"),
                     Some(b) => b,
@@ -246,7 +243,7 @@ impl BucketTree {
             root: BucketTreeNode::Bucket(Bucket::new()), }
     }
 
-    pub fn find_bucket<'a>(&'a self, id_bits: &'a NodeId) -> &'a Bucket {
+    pub fn find_bucket<'a>(&'a mut self, id_bits: &'a NodeId) -> &'a mut Bucket {
         self.root.find_bucket(id_bits)
     }
 }
@@ -270,12 +267,33 @@ impl Bucket {
     }
 
     pub fn contains_id<'a>(&self, id: &'a NodeId) -> bool {
-        for contact in self.info.iter() {
+        self.find_id_pos(id).is_some()
+    }
+
+    // Return the index (in the linked list) of the (first) entry containing
+    // `id` if it exists
+    pub fn find_id_pos<'a>(&self, id: &'a NodeId) -> Option<usize> {
+        for (i, contact) in self.info.iter().enumerate() {
             if contact.id == *id {
-                return true;
+                return Some(i);
             }
         }
-        return false;
+        return None;
+    }
+
+    pub fn move_to_end(&mut self, pos: usize) -> bool {
+        let mut split = self.info.split_off(pos);
+        let x = match split.pop_front() {
+            Some(val) => val,
+            None => return false,
+        };
+        split.push_back(x);
+        self.info.append(&mut split);
+        true
+    }
+
+    pub fn len(&self) -> usize {
+        self.info.len()
     }
 
     // TODO: should this method call evict()?
