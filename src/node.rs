@@ -13,7 +13,6 @@ pub struct NodeId {
     id: Vec<u8>,
 }
 
-
 impl NodeId {
     pub fn new(num_bytes: usize) -> NodeId {
         let v = Vec::with_capacity(num_bytes);
@@ -98,7 +97,7 @@ pub struct NodeInfo {
     pub id: NodeId,
 }
 
-//  The routing tree for node with id NodeInfoStore::id
+//  The routing tree for a node. Stores NodeInfo entries in buckets.
 pub struct NodeInfoStore {
     // ID of the node whose store this is.
     id: NodeId,
@@ -136,6 +135,7 @@ def see(info: NodeContactInfo) {
     } else {
         if the bucket has free space {
             the new entry is inserted at the tail of the list
+        } else {
             the node at the head of the list is contacted.
 
             if that node fails to respond {
@@ -166,7 +166,6 @@ def see(info: NodeContactInfo) {
         if let Some(pos) = bkt.find_id_pos(sid) {
             bkt.move_to_end(pos);
         }
-
     }
 
 }
