@@ -3,91 +3,7 @@ use std::ops::BitXor;
 use std::collections::LinkedList;
 use rand::{self, Rng};
 
-pub const NODE_ID_BYTES: usize = 20;
-pub const NODE_ID_BITS: u32 = (NODE_ID_BYTES as u32) * 8;
-
 pub const BUCKET_SIZE: u32 = 20;
-
-#[derive(Clone, PartialEq, Eq)]
-pub struct NodeId {
-    id: Vec<u8>,
-}
-
-impl NodeId {
-    pub fn new(num_bytes: usize) -> NodeId {
-        let v = Vec::with_capacity(num_bytes);
-        NodeId { id: v }
-    }
-
-    pub fn new_default() -> NodeId {
-        NodeId::new(NODE_ID_BYTES)
-    }
-
-    // generates a random NodeId
-    pub fn new_random(num_bytes: usize) -> NodeId {
-        let mut rng = match rand::OsRng::new() {
-            Ok(rng) => rng,
-            e => panic!("Error getting random number generator: {}"),
-        };
-
-        let mut v = Vec::with_capacity(num_bytes);
-        rng.fill_bytes(&mut v);
-        NodeId { id: v }
-    }
-
-    // generates a random NodeId
-    pub fn new_random_default() -> NodeId {
-        NodeId::new_random(NODE_ID_BYTES)
-    }
-
-
-    pub fn from_bytes<'a>(bytes: &'a [u8]) -> NodeId {
-        let mut v = Vec::with_capacity(bytes.len());
-        v.push_all(bytes);
-        NodeId { id: v }
-    }
-
-
-    pub fn num_bytes(&self) -> usize {
-        self.id.len()
-    }
-
-    // can overflow somewhat easily
-    pub fn num_bits(&self) -> usize {
-        self.num_bytes() * 8
-    }
-
-    // i should be zero referenced.
-    //  - 0 is most significant bit
-    //  - (self.num_bits() - 1) is least significant bit
-    pub fn get_bit(&self, i: usize) -> Option<bool> {
-        if i >= self.num_bits() {
-            None
-        } else {
-            let byte = self.id[i / 8];
-            let shift: u8 = 1 << (7 - (i % 8));
-            Some( (byte & shift) != 0 )
-        }
-    }
-}
-
-// I would like to convert output to integer, but there's a problem:
-// even the default hash (SHA-1) is 20 bytes, so u64 can't store the
-// result. Would have to use BigUint, it seems. So this returns
-// a NodeId, for now. Will count number of initial zeroes or something
-// in this result to figure out the number.
-impl BitXor for NodeId {
-    type Output = NodeId;
-
-    fn bitxor(self, _rhs: NodeId) -> NodeId {
-        let mut n = NodeId::new(self.num_bytes());
-        for i in 0..NODE_ID_BYTES {
-            n.id[i] = self.id[i] ^ _rhs.id[i];
-        }
-        n
-    }
-}
-
 
 // Whenever a node sends a message to the current node, the current node
 // will record the socket address (IP address and port)
@@ -115,6 +31,10 @@ impl NodeInfoStore {
 
     pub fn new_default(id: NodeId) -> NodeInfoStore {
         NodeInfoStore::new(id, BUCKET_SIZE)
+    }
+
+    pub fn bucket_size(&self) -> u32 {
+        self.buckets.bucket_size()
     }
 
 /*
@@ -165,6 +85,11 @@ def see(info: NodeContactInfo) {
 
         if let Some(pos) = bkt.find_id_pos(sid) {
             bkt.move_to_end(pos);
+        } else {
+            if bkt.len() == self.bucket_size() {
+
+            }
+
         }
     }
 
@@ -179,7 +104,7 @@ impl<'a> NodeIdBits<'a> {
     fn new(id: &'a NodeId) -> NodeIdBits<'a> {
         NodeIdBits {
             id: id,
-            bit: 1 << (id.num_bits() - 1)
+            bit: 1 << (NODE_ID_BITS - 1)
         }
     }
 }
@@ -245,6 +170,10 @@ impl BucketTree {
     pub fn find_bucket<'a>(&'a mut self, id_bits: &'a NodeId) -> &'a mut Bucket {
         self.root.find_bucket(id_bits)
     }
+
+    pub fn bucket_size(&self) -> u32 {
+        self.size
+    }
 }
 
 
@@ -291,8 +220,8 @@ impl Bucket {
         true
     }
 
-    pub fn len(&self) -> usize {
-        self.info.len()
+    pub fn len(&self) -> u32 {
+        self.info.len() as u32
     }
 
     // TODO: should this method call evict()?
