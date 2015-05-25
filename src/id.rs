@@ -1,4 +1,5 @@
 use rand::{self, Rng};
+use std::fmt::{Debug, Formatter, Error};
 use std::slice::bytes;
 use std::ops::BitXor;
 
@@ -38,6 +39,16 @@ impl NodeId {
             let shift: u8 = 1 << (7 - (i % 8));
             Some( (byte & shift) != 0 )
         }
+    }
+
+    fn num_prefix_zeroes(&self) -> usize {
+        let mut x = 0;
+        for i in 0..NODE_ID_BITS {
+            if self.get_bit(i) == 0 {
+                x += 1;
+            }
+        }
+        x
     }
 }
 

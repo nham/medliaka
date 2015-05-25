@@ -1,4 +1,5 @@
-use node::{NodeId, NodeInfo, NodeInfoStore};
+use id::{NodeId};
+use routing::{NodeInfo, RoutingTable};
 
 use std::net;
 use std::io;
@@ -6,19 +7,19 @@ use std::io;
 // inspired by https://github.com/divius/rust-dht
 pub struct KrpcService {
     id: NodeId,
-    info_store: NodeInfoStore, // Use Arc<RwLock<NodeInfoStore>>?
+    table: RoutingTable, // Use Arc<RwLock<NodeInfoStore>>?
     socket: net::UdpSocket,
 }
 
 impl KrpcService {
     /// New service with default node table.
     pub fn new(info: NodeInfo) -> io::Result<KrpcService> {
-        let info_store = NodeInfoStore::new_default( info.id.clone() );
+        let table = RoutingTable::new( info.id.clone() );
         let socket = try!( net::UdpSocket::bind(info.address) );
 
        Ok(KrpcService {
            id: info.id,
-           info_store: info_store,
+           table: table,
            socket: socket,
        })
     }

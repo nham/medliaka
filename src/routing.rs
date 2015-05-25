@@ -1,3 +1,5 @@
+use id::{NodeId, NODE_ID_BITS};
+
 use std::collections::LinkedList;
 use std::net;
 
@@ -64,90 +66,30 @@ impl Bucket {
 }
 
 
-enum BucketTreeNode {
-    Bucket(Bucket),
-    Compound(Box<BucketTreeNode>, Box<BucketTreeNode>),
-}
-
-impl BucketTreeNode {
-    pub fn find_bucket<'a>(&'a mut self, id_bits: &'a NodeId) -> &'a mut Bucket {
-        let mut iter = NodeIdBits::new(&id_bits);
-        match self.find_bucket_recursive(&mut iter) {
-            None => panic!("Got `None` from find_bucket_recursive. Help"),
-            Some(b) => b
-        }
-    }
-
-    fn find_bucket_recursive<'a>(&'a mut self, id_bits: &mut NodeIdBits<'a>) -> Option<&'a mut Bucket> {
-        match *self {
-            BucketTreeNode::Bucket(ref mut bucket) => Some(bucket),
-            BucketTreeNode::Compound(ref mut node0, ref mut node1) => {
-                let b = match id_bits.next() {
-                    None => panic!("find_bucket_recursive: No bits left in NodeId"),
-                    Some(b) => b,
-                };
-
-                if b {
-                    node1.find_bucket_recursive(id_bits)
-                } else {
-                    node0.find_bucket_recursive(id_bits)
-                }
-            },
-        }
-    }
-}
-
-
-struct BucketTree {
-    size: u32,
-    root: BucketTreeNode,
-}
-
-
-impl BucketTree {
-    // Creates a BucketTree with a single (empty) bucket.
-    pub fn new(size: u32) -> BucketTree {
-        BucketTree {
-            size: size,
-            root: BucketTreeNode::Bucket(Bucket::new()), }
-    }
-
-    pub fn find_bucket<'a>(&'a mut self, id_bits: &'a NodeId) -> &'a mut Bucket {
-        self.root.find_bucket(id_bits)
-    }
-
-    pub fn bucket_size(&self) -> u32 {
-        self.size
-    }
-}
-
-
 
 pub const BUCKET_SIZE: u32 = 20;
 
-//  The routing tree for a node. Stores NodeInfo entries in buckets.
-pub struct NodeInfoStore {
+//  The routing table for a node. Stores NodeInfo entries in buckets.
+pub struct RoutingTable {
     // ID of the node whose store this is.
     id: NodeId,
 
-    buckets: BucketTree,
+    buckets: Vec<Bucket>,
 }
 
-impl NodeInfoStore {
-    pub fn new(id: NodeId, bucket_size: u32) -> NodeInfoStore {
-        NodeInfoStore {
+impl RoutingTable {
+    pub fn new(id: NodeId) -> RoutingTable {
+        let mut buckets = vec![];
+        for _ in 0..NODE_ID_BITS {
+            buckets.push(vec![]);
+        }
+
+        RoutingTable {
             id: id,
-            buckets: BucketTree::new(bucket_size),
+            buckets: buckets,
         }
     }
 
-    pub fn new_default(id: NodeId) -> NodeInfoStore {
-        NodeInfoStore::new(id, BUCKET_SIZE)
-    }
-
-    pub fn bucket_size(&self) -> u32 {
-        self.buckets.bucket_size()
-    }
 
 /*
 
@@ -203,6 +145,10 @@ def see(info: NodeContactInfo) {
             }
 
         }
+    }
+
+    fn bucket_index(&self, id: NodeId) -> usize {
+        (id ^ self.id).num_prefix_zeroes()
     }
 
 }
