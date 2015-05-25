@@ -1,4 +1,6 @@
+use rand::{self, Rng};
 use std::slice::bytes;
+use std::ops::BitXor;
 
 pub const NODE_ID_BYTES: usize = 20;
 pub const NODE_ID_BITS: usize = NODE_ID_BYTES * 8;
@@ -55,3 +57,39 @@ impl BitXor for NodeId {
         n
     }
 }
+
+
+impl Debug for NodeId {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        for x in self.0.iter() {
+            try!(write!(f, "{0:02x}", x));
+        }
+        Ok(())
+    }
+}
+
+// TODO: I think I should remove this.
+struct NodeIdBits<'a> {
+    id: &'a NodeId,
+    bit: usize,
+}
+
+impl<'a> NodeIdBits<'a> {
+    fn new(id: &'a NodeId) -> NodeIdBits<'a> {
+        NodeIdBits {
+            id: id,
+            bit: 1 << (NODE_ID_BITS - 1)
+        }
+    }
+}
+
+impl<'a> Iterator for NodeIdBits<'a> {
+    type Item = bool;
+    fn next(&mut self) -> Option<Self::Item> {
+        let curr = self.id.get_bit(self.bit);
+        self.bit += 1;
+        curr
+    }
+}
+
+
